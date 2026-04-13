@@ -1,0 +1,44 @@
+# =============================================================================
+# Site definitions for scraping
+# Add new sites by copying a block and adjusting the fields.
+# =============================================================================
+#
+# Fields:
+#   name          - Human-readable name (used in logs and output filenames)
+#   base_url      - The domain root (used to resolve relative links)
+#   start_urls    - List of URLs to begin crawling from
+#   follow_links  - Whether to discover and follow links on scraped pages
+#   link_selector - CSS selector to find links to follow (default: "a[href]")
+#   content_selector - CSS selector to narrow content extraction (optional,
+#                      trafilatura auto-detects main content if omitted)
+#   max_pages     - Maximum number of pages to scrape per site
+#   delay         - Seconds to wait between requests (be polite!)
+#   concurrency   - Number of parallel requests (default: 5)
+#   allowed_paths - URL path prefixes to stay within (prevents wandering)
+# =============================================================================
+
+sites:
+  # --- sundhed.dk Patienthåndbogen (Danish health encyclopedia) ---
+  - name: "patienthaandbogen-dk"
+    base_url: "https://www.sundhed.dk"
+    start_urls:
+      - "https://www.sundhed.dk/borger/patienthaandbogen/"
+    follow_links: true
+    link_selector: "a[href]"
+    max_pages: 100000
+    delay: 1.5
+    allowed_paths:
+      - "/borger/patienthaandbogen/"
+
+sites:
+  # --- sundhed.dk Patienthåndbogen (Danish health encyclopedia) ---
+  - name: "laegehaandbogen-dk"
+    base_url: "https://www.sundhed.dk"
+    start_urls:
+      - "https://www.sundhed.dk/sundhedsfaglig/laegehaandbogen/"
+    follow_links: true
+    link_selector: "a[href]"
+    max_pages: 100000
+    delay: 1.5
+    allowed_paths:
+      - "/sundhedsfaglig/laegehaandbogen/"

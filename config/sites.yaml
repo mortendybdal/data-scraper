@@ -94,3 +94,14 @@ sites:
     delay: 1.5
     allowed_paths:
       - "/vidensbase/"
+
+  - name: "ugeskriftet-dk"
+    base_url: "https://ugeskriftet.dk/"
+    start_urls:
+      - "https://ugeskriftet.dk/"
+    follow_links: true
+    link_selector: "a[href]"
+    max_pages: 100000
+    delay: 1.5
+    allowed_paths:
+      - "/"

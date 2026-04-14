@@ -21,6 +21,7 @@ from pathlib import Path
 
 import yaml
 
+from scraper.cleaner import light_filter
 from scraper.crawler import Crawler, ScrapedPage, SiteConfig
 from scraper.extractor import extract_text
 from scraper.formatter import (
@@ -46,7 +47,7 @@ def _extract_and_format(
     documents = []
     for page in pages:
         text = extract_text(page, content_selector=config.content_selector)
-        if text:
+        if text and light_filter(text):
             chunks = chunk_text(text, max_tokens=1900)
             for i, chunk in enumerate(chunks):
                 documents.append(
@@ -188,7 +189,10 @@ def main() -> None:
 
     if args.merge:
         per_site_files = sorted(args.output.glob("*.jsonl"))
-        per_site_files = [f for f in per_site_files if f.name != "combined_cpt.jsonl"]
+        per_site_files = [
+            f for f in per_site_files
+            if f.name != "combined_cpt.jsonl" and ".rejected." not in f.name
+        ]
         if not per_site_files:
             print("No JSONL files found to merge.")
             return
@@ -220,7 +224,10 @@ def main() -> None:
     # Merge into combined file
     if total_all:
         per_site_files = sorted(args.output.glob("*.jsonl"))
-        per_site_files = [f for f in per_site_files if f.name != "combined_cpt.jsonl"]
+        per_site_files = [
+            f for f in per_site_files
+            if f.name != "combined_cpt.jsonl" and ".rejected." not in f.name
+        ]
         if per_site_files:
             out = merge_cpt_files(per_site_files, args.output / "combined_cpt.jsonl")
             print(f"\n{'='*60}")

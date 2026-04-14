@@ -83,9 +83,9 @@ def save_cpt_jsonl(
     texts: list[dict[str, str]],
     output_path: Path,
 ) -> Path:
-    """Save documents as JSONL for Unsloth Continued Pre-Training.
+    """Save documents as JSONL in SFT format.
 
-    Each line: {"text": "document content..."}
+    Each line: {"instruction": "", "input": "", "output": "document content..."}
 
     Args:
         texts: List of dicts with at least "text" (and optionally "source", "url").
@@ -99,7 +99,11 @@ def save_cpt_jsonl(
     count = 0
     with open(output_path, "w", encoding="utf-8") as f:
         for doc in texts:
-            record = {"text": doc["text"]}
+            record = {
+                "instruction": "",
+                "input": "",
+                "output": doc["text"],
+            }
             f.write(json.dumps(record, ensure_ascii=False) + "\n")
             count += 1
 
@@ -111,19 +115,24 @@ def save_cpt_jsonl_with_metadata(
     texts: list[dict[str, str]],
     output_path: Path,
 ) -> Path:
-    """Save documents as JSONL with metadata (source URL, site name).
+    """Save documents as JSONL in SFT format with metadata.
 
-    Useful for debugging and filtering. The 'text' field is what Unsloth uses;
-    extra fields are ignored during training but helpful for data management.
-
-    Each line: {"text": "...", "source": "...", "url": "..."}
+    Each line: {"instruction": "", "input": "", "output": "...", "source": "...", "url": "..."}
     """
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     count = 0
     with open(output_path, "w", encoding="utf-8") as f:
         for doc in texts:
-            f.write(json.dumps(doc, ensure_ascii=False) + "\n")
+            record = {
+                "instruction": "",
+                "input": "",
+                "output": doc["text"],
+                "source": doc.get("source", ""),
+                "url": doc.get("url", ""),
+                "chunk": doc.get("chunk", ""),
+            }
+            f.write(json.dumps(record, ensure_ascii=False) + "\n")
             count += 1
 
     logger.info("Wrote %d documents (with metadata) to %s", count, output_path)
@@ -150,10 +159,16 @@ def merge_cpt_files(input_paths: list[Path], output_path: Path) -> Path:
     with open(output_path, "w", encoding="utf-8") as out:
         for path in input_paths:
             for doc in load_cpt_jsonl(path):
-                text_hash = hash(doc.get("text", ""))
+                text = doc.get("output", doc.get("text", ""))
+                text_hash = hash(text)
                 if text_hash not in seen_texts:
                     seen_texts.add(text_hash)
-                    out.write(json.dumps(doc, ensure_ascii=False) + "\n")
+                    record = {
+                        "instruction": "",
+                        "input": "",
+                        "output": text,
+                    }
+                    out.write(json.dumps(record, ensure_ascii=False) + "\n")
                     count += 1
 
     logger.info("Merged %d unique documents into %s", count, output_path)

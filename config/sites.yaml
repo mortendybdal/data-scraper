@@ -18,7 +18,6 @@
 # =============================================================================
 
 sites:
-  # --- sundhed.dk Patienthåndbogen (Danish health encyclopedia) ---
   - name: "patienthaandbogen-dk"
     base_url: "https://www.sundhed.dk"
     start_urls:
@@ -31,7 +30,6 @@ sites:
       - "/borger/patienthaandbogen/"
 
 sites:
-  # --- sundhed.dk Patienthåndbogen (Danish health encyclopedia) ---
   - name: "laegehaandbogen-dk"
     base_url: "https://www.sundhed.dk"
     start_urls:
@@ -42,3 +40,52 @@ sites:
     delay: 1.5
     allowed_paths:
       - "/sundhedsfaglig/laegehaandbogen/"
+
+sites:
+  - name: "vaccination-dk"
+    base_url: "https://www.vaccination.dk"
+    start_urls:
+      - "https://www.vaccination.dk"
+    follow_links: true
+    link_selector: "a[href]"
+    max_pages: 100000
+    delay: 1.5
+    allowed_paths:
+      - "/"
+
+sites:
+  - name: "sportnetdoc-dk"
+    base_url: "https://sportnetdoc.dk"
+    start_urls:
+      - "https://sportnetdoc.dk/"
+    follow_links: true
+    link_selector: "a[href]"
+    max_pages: 100000
+    delay: 1.5
+    allowed_paths:
+      - "/"
+
+sites:
+  - name: "astma-allergi-dk"
+    base_url: "https://www.astma-allergi.dk"
+    start_urls:
+      - "https://www.astma-allergi.dk/"
+    follow_links: true
+    link_selector: "a[href]"
+    max_pages: 100000
+    delay: 1.5
+    allowed_paths:
+      - "/"
+
+sites:
+  - name: "medicin-dk"
+    base_url: "https://pro.medicin.dk"
+    start_urls:
+      - "https://pro.medicin.dk/"
+    follow_links: true
+    link_selector: "a[href]"
+    max_pages: 100000
+    delay: 1.5
+    allowed_paths:
+      - "/"
+

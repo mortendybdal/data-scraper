@@ -7,25 +7,26 @@ Usage:
     python main.py --sites python-docs      # Scrape specific site(s)
     python main.py --merge                  # Merge all existing outputs into one file
     python main.py --list                   # List configured sites
+    python main.py --recrawl                # Re-crawl all pages (ignore resume state)
+    python main.py --continuous             # Keep crawling without max_pages limit
 """
 
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 
 import yaml
 
-from scraper.crawler import Crawler, SiteConfig
+from scraper.crawler import Crawler, ScrapedPage, SiteConfig
 from scraper.extractor import extract_text
 from scraper.formatter import (
     chunk_text,
     merge_cpt_files,
     save_cpt_jsonl,
-    save_cpt_jsonl_with_metadata,
 )
 
 CONFIG_PATH = Path(__file__).parent / "config" / "sites.yaml"
@@ -38,11 +39,10 @@ def load_configs(config_path: Path) -> list[SiteConfig]:
     return [SiteConfig.from_dict(s) for s in data.get("sites", [])]
 
 
-def scrape_site(config: SiteConfig) -> list[dict[str, str]]:
-    """Crawl a site and extract clean text from each page."""
-    crawler = Crawler(config)
-    pages = crawler.crawl()
-
+def _extract_and_format(
+    pages: list[ScrapedPage], config: SiteConfig
+) -> list[dict[str, str]]:
+    """Extract text from pages and return formatted document dicts."""
     documents = []
     for page in pages:
         text = extract_text(page, content_selector=config.content_selector)
@@ -57,14 +57,70 @@ def scrape_site(config: SiteConfig) -> list[dict[str, str]]:
                         "chunk": f"{i+1}/{len(chunks)}",
                     }
                 )
+    return documents
+
+
+def _append_jsonl(documents: list[dict[str, str]], output_path: Path) -> None:
+    """Append documents to a JSONL file in SFT format."""
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(output_path, "a", encoding="utf-8") as f:
+        for doc in documents:
+            record = {
+                "instruction": "",
+                "input": "",
+                "output": doc["text"],
+                "source": doc.get("source", ""),
+                "url": doc.get("url", ""),
+                "chunk": doc.get("chunk", ""),
+            }
+            f.write(json.dumps(record, ensure_ascii=False) + "\n")
+
+
+def scrape_site(
+    config: SiteConfig,
+    output_dir: Path,
+    recrawl: bool = False,
+    continuous: bool = False,
+) -> int:
+    """Crawl a site with continuous saving. Returns total document count."""
+    site_path = output_dir / f"{config.name}.jsonl"
+
+    # If recrawling, start the file fresh
+    if recrawl and site_path.exists():
+        site_path.unlink()
+
+    crawler = Crawler(
+        config,
+        output_path=site_path,
+        recrawl=recrawl,
+        continuous=continuous,
+    )
+
+    total_docs = 0
+
+    def on_batch(pages: list[ScrapedPage]) -> None:
+        nonlocal total_docs
+        documents = _extract_and_format(pages, config)
+        if documents:
+            _append_jsonl(documents, site_path)
+            total_docs += len(documents)
+            logging.info(
+                "[%s] Saved %d docs (total: %d)",
+                config.name,
+                len(documents),
+                total_docs,
+            )
+
+    crawler.on_pages(on_batch)
+    crawler.crawl()
 
     logging.info(
-        "[%s] Extracted %d documents from %d pages.",
+        "[%s] Done — %d documents saved to %s",
         config.name,
-        len(documents),
-        len(pages),
+        total_docs,
+        site_path,
     )
-    return documents
+    return total_docs
 
 
 def main() -> None:
@@ -104,6 +160,16 @@ def main() -> None:
         action="store_true",
         help="Enable debug logging.",
     )
+    parser.add_argument(
+        "--recrawl",
+        action="store_true",
+        help="Ignore resume state and recrawl all pages from scratch.",
+    )
+    parser.add_argument(
+        "--continuous",
+        action="store_true",
+        help="Keep crawling without max_pages limit (until queue is empty or Ctrl+C).",
+    )
     args = parser.parse_args()
 
     logging.basicConfig(
@@ -137,28 +203,30 @@ def main() -> None:
             print(f"No matching sites found for: {args.sites}")
             sys.exit(1)
 
-    all_documents: list[dict[str, str]] = []
+    total_all = 0
 
     for config in configs:
         print(f"\n{'='*60}")
         print(f"Scraping: {config.name}")
+        if args.recrawl:
+            print("  (recrawl mode — ignoring previous state)")
+        if args.continuous:
+            print("  (continuous mode — no page limit)")
         print(f"{'='*60}")
-        documents = scrape_site(config)
-        all_documents.extend(documents)
+        count = scrape_site(config, args.output, args.recrawl, args.continuous)
+        total_all += count
+        print(f"  → {count} documents saved to {args.output / f'{config.name}.jsonl'}")
 
-        # Save per-site file
-        site_path = args.output / f"{config.name}.jsonl"
-        save_cpt_jsonl_with_metadata(documents, site_path)
-        print(f"  → Saved {len(documents)} documents to {site_path}")
-
-    # Save combined CPT-ready file (text only, for direct upload to Unsloth)
-    if all_documents:
-        cpt_path = args.output / "combined_cpt.jsonl"
-        save_cpt_jsonl(all_documents, cpt_path)
-        print(f"\n{'='*60}")
-        print(f"CPT training file: {cpt_path}")
-        print(f"Total documents:   {len(all_documents)}")
-        print(f"{'='*60}")
+    # Merge into combined file
+    if total_all:
+        per_site_files = sorted(args.output.glob("*.jsonl"))
+        per_site_files = [f for f in per_site_files if f.name != "combined_cpt.jsonl"]
+        if per_site_files:
+            out = merge_cpt_files(per_site_files, args.output / "combined_cpt.jsonl")
+            print(f"\n{'='*60}")
+            print(f"Combined file: {out}")
+            print(f"Total documents: {total_all}")
+            print(f"{'='*60}")
     else:
         print("\nNo documents extracted.")
 

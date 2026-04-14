@@ -40,7 +40,17 @@ sites:
     allowed_paths:
       - "/sundhedsfaglig/laegehaandbogen/"
 
-sites:
+  - name: "information-til-praksis-dk"
+    base_url: "https://www.sundhed.dk"
+    start_urls:
+      - "https://www.sundhed.dk/sundhedsfaglig/information-til-praksis/"
+    follow_links: true
+    link_selector: "a[href]"
+    max_pages: 100000
+    delay: 1.5
+    allowed_paths:
+      - "/sundhedsfaglig/information-til-praksis/"
+
   - name: "vaccination-dk"
     base_url: "https://www.vaccination.dk"
     start_urls:
@@ -74,13 +84,13 @@ sites:
     allowed_paths:
       - "/"
 
-  - name: "astma-allergi-dk"
-    base_url: "https://www.astma-allergi.dk"
+  - name: "sst-dk"
+    base_url: "https://www.sst.dk"
     start_urls:
-      - "https://www.astma-allergi.dk/"
+      - "https://www.sst.dk/vidensbase"
     follow_links: true
     link_selector: "a[href]"
     max_pages: 100000
     delay: 1.5
     allowed_paths:
-      - "/"
+      - "/vidensbase/"

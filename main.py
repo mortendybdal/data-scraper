@@ -21,6 +21,7 @@ from pathlib import Path
 
 import yaml
 
+from scraper.api_client import ApiScraper
 from scraper.cleaner import light_filter
 from scraper.crawler import Crawler, ScrapedPage, SiteConfig
 from scraper.extractor import extract_text
@@ -75,6 +76,51 @@ def _append_jsonl(documents: list[dict[str, str]], output_path: Path) -> None:
                 "chunk": doc.get("chunk", ""),
             }
             f.write(json.dumps(record, ensure_ascii=False) + "\n")
+
+
+def scrape_api(
+    config: SiteConfig,
+    output_dir: Path,
+    recrawl: bool = False,
+) -> int:
+    """Scrape a JSON API source. Returns total document count."""
+    site_path = output_dir / f"{config.name}.jsonl"
+
+    if recrawl and site_path.exists():
+        site_path.unlink()
+
+    scraper = ApiScraper(config, output_path=site_path, recrawl=recrawl)
+
+    total_docs = 0
+
+    def on_batch(documents: list[dict[str, str]]) -> None:
+        nonlocal total_docs
+        filtered = []
+        for doc in documents:
+            chunks = chunk_text(doc["text"], max_tokens=1900)
+            for i, chunk in enumerate(chunks):
+                filtered.append(
+                    {
+                        "text": chunk,
+                        "source": doc.get("source", config.name),
+                        "url": doc.get("url", ""),
+                        "chunk": f"{i+1}/{len(chunks)}",
+                    }
+                )
+        if filtered:
+            _append_jsonl(filtered, site_path)
+            total_docs += len(filtered)
+
+    scraper.on_pages(on_batch)
+    scraper.scrape()
+
+    logging.info(
+        "[%s] Done — %d documents saved to %s",
+        config.name,
+        total_docs,
+        site_path,
+    )
+    return total_docs
 
 
 def scrape_site(
@@ -190,7 +236,8 @@ def main() -> None:
     if args.merge:
         per_site_files = sorted(args.output.glob("*.jsonl"))
         per_site_files = [
-            f for f in per_site_files
+            f
+            for f in per_site_files
             if f.name != "combined_cpt.jsonl" and ".rejected." not in f.name
         ]
         if not per_site_files:
@@ -217,7 +264,10 @@ def main() -> None:
         if args.continuous:
             print("  (continuous mode — no page limit)")
         print(f"{'='*60}")
-        count = scrape_site(config, args.output, args.recrawl, args.continuous)
+        if config.type == "api":
+            count = scrape_api(config, args.output, args.recrawl)
+        else:
+            count = scrape_site(config, args.output, args.recrawl, args.continuous)
         total_all += count
         print(f"  → {count} documents saved to {args.output / f'{config.name}.jsonl'}")
 
@@ -225,7 +275,8 @@ def main() -> None:
     if total_all:
         per_site_files = sorted(args.output.glob("*.jsonl"))
         per_site_files = [
-            f for f in per_site_files
+            f
+            for f in per_site_files
             if f.name != "combined_cpt.jsonl" and ".rejected." not in f.name
         ]
         if per_site_files:

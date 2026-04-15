@@ -26,6 +26,7 @@ class SiteConfig:
     name: str
     base_url: str
     start_urls: list[str]
+    type: str = "web"
     follow_links: bool = True
     link_selector: str = "a[href]"
     content_selector: str | None = None
@@ -33,13 +34,15 @@ class SiteConfig:
     delay: float = 1.0
     concurrency: int = 5
     allowed_paths: list[str] = field(default_factory=list)
+    search_queries: list[str] = field(default_factory=list)
 
     @classmethod
     def from_dict(cls, data: dict) -> SiteConfig:
         return cls(
             name=data["name"],
             base_url=data["base_url"],
-            start_urls=data["start_urls"],
+            start_urls=data.get("start_urls", []),
+            type=data.get("type", "web"),
             follow_links=data.get("follow_links", True),
             link_selector=data.get("link_selector", "a[href]"),
             content_selector=data.get("content_selector"),
@@ -47,6 +50,7 @@ class SiteConfig:
             delay=data.get("delay", 1.0),
             concurrency=data.get("concurrency", 5),
             allowed_paths=data.get("allowed_paths", []),
+            search_queries=data.get("search_queries", []),
         )
 
 

@@ -72,10 +72,10 @@ _PROMO_PATTERNS: list[re.Pattern] = [
 ]
 
 # Minimum characters for meaningful medical content
-MIN_CONTENT_LENGTH = 200
+MIN_CONTENT_LENGTH = 150
 
 # Threshold for fuzzy duplicate detection (ratio of shared lines)
-FUZZY_DUPLICATE_THRESHOLD = 0.85
+FUZZY_DUPLICATE_THRESHOLD = 1.0
 
 
 # ===================================================================
@@ -140,7 +140,7 @@ def _find_boilerplate_lines(records: list[dict], threshold: float = 0.3) -> set[
         text = rec.get("output", rec.get("text", ""))
         unique_lines = set(_text_lines(text))
         for line in unique_lines:
-            if len(line) < 100:
+            if len(line) < 140:
                 line_counts[line] += 1
 
     min_count = max(3, int(total * threshold))

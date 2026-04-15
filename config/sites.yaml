@@ -105,3 +105,9 @@ sites:
     delay: 1.5
     allowed_paths:
       - "/"
+
+  - name: "medicinpriser-dk"
+    type: "api"
+    base_url: "http://api.medicinpriser.dk/v1"
+    delay: 0.5
+    concurrency: 10
